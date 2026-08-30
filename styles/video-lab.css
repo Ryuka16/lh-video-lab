@@ -1,0 +1,877 @@
+/* =====================================================================
+ *  教学视频库 · lh-video-lab  v1.3.0
+ *  左右布局 + 5 套预设配色 + gacha 式动画
+ *
+ *  配色实现：变量直接挂在窗口元素 .video-lab-app[data-theme="x"] 与
+ *  内容根 .vlab-root[data-theme="x"]（双保险，不用 :has）。
+ *  每个主题定义完整一套变量，不依赖继承兜底。
+ *  文字颜色关键处 !important，防 FVTT 皮肤/主题 CSS 压黑字。
+ * ===================================================================== */
+
+/* =====================================================================
+ *  主题变量
+ * ===================================================================== */
+/* 兜底：窗口刚渲染、data-theme 未挂上的一瞬（深空蓝默认） */
+.video-lab-app {
+  --vlab-bg: #0a0a0c;
+  --vlab-bg2: #0e1014;
+  --vlab-surface: #121318;
+  --vlab-surface2: #1a1c23;
+  --vlab-border: rgba(255, 255, 255, 0.09);
+  --vlab-text: #e2e8f0;
+  --vlab-muted: #8b9bb4;
+  --vlab-accent: #00d2ff;
+  --vlab-accent2: #ffd700;
+  --vlab-glow: rgba(0, 210, 255, 0.2);
+  --vlab-ok: #34d399;
+  --vlab-bad: #ff4757;
+  --vlab-input-bg: rgba(0, 0, 0, 0.4);
+  --vlab-hover-text: #fff;
+  --vlab-stage-bg: radial-gradient(120% 130% at 50% 0%, #161a24, #000 75%);
+}
+
+/* 深空蓝 */
+.video-lab-app[data-theme="deep"], .vlab-root[data-theme="deep"] {
+  --vlab-bg: #0a0a0c;
+  --vlab-bg2: #0e1014;
+  --vlab-surface: #121318;
+  --vlab-surface2: #1a1c23;
+  --vlab-border: rgba(255, 255, 255, 0.09);
+  --vlab-text: #e2e8f0;
+  --vlab-muted: #8b9bb4;
+  --vlab-accent: #00d2ff;
+  --vlab-accent2: #ffd700;
+  --vlab-glow: rgba(0, 210, 255, 0.2);
+  --vlab-ok: #34d399;
+  --vlab-bad: #ff4757;
+  --vlab-input-bg: rgba(0, 0, 0, 0.4);
+  --vlab-hover-text: #fff;
+  --vlab-stage-bg: radial-gradient(120% 130% at 50% 0%, #161a24, #000 75%);
+}
+
+/* 蓝白（浅色高对比） */
+.video-lab-app[data-theme="bluewhite"], .vlab-root[data-theme="bluewhite"] {
+  --vlab-bg: #eef2f8;
+  --vlab-bg2: #e5ecf6;
+  --vlab-surface: #ffffff;
+  --vlab-surface2: #f1f5fb;
+  --vlab-border: rgba(23, 42, 84, 0.16);
+  --vlab-text: #14213d;
+  --vlab-muted: #5b6b8e;
+  --vlab-accent: #2563eb;
+  --vlab-accent2: #0ea5e9;
+  --vlab-glow: rgba(37, 99, 235, 0.22);
+  --vlab-ok: #059669;
+  --vlab-bad: #e11d48;
+  --vlab-input-bg: rgba(23, 42, 84, 0.06);
+  --vlab-hover-text: #1d4ed8;
+  --vlab-stage-bg: radial-gradient(120% 130% at 50% 0%, #ffffff, #dde6f3 80%);
+}
+
+/* 紫绿 */
+.video-lab-app[data-theme="purgreen"], .vlab-root[data-theme="purgreen"] {
+  --vlab-bg: #0c0a13;
+  --vlab-bg2: #100d1a;
+  --vlab-surface: #151122;
+  --vlab-surface2: #1d1830;
+  --vlab-border: rgba(255, 255, 255, 0.09);
+  --vlab-text: #e8e4f5;
+  --vlab-muted: #9488b8;
+  --vlab-accent: #a78bfa;
+  --vlab-accent2: #34d399;
+  --vlab-glow: rgba(167, 139, 250, 0.24);
+  --vlab-ok: #34d399;
+  --vlab-bad: #ff4757;
+  --vlab-input-bg: rgba(0, 0, 0, 0.4);
+  --vlab-hover-text: #fff;
+  --vlab-stage-bg: radial-gradient(120% 130% at 50% 0%, #1c1730, #000 75%);
+}
+
+/* 鎏金黑 */
+.video-lab-app[data-theme="gold"], .vlab-root[data-theme="gold"] {
+  --vlab-bg: #0d0b08;
+  --vlab-bg2: #121009;
+  --vlab-surface: #171309;
+  --vlab-surface2: #211b0e;
+  --vlab-border: rgba(255, 255, 255, 0.09);
+  --vlab-text: #f2ead8;
+  --vlab-muted: #a8976f;
+  --vlab-accent: #ffd700;
+  --vlab-accent2: #ff9d4d;
+  --vlab-glow: rgba(255, 215, 0, 0.24);
+  --vlab-ok: #34d399;
+  --vlab-bad: #ff4757;
+  --vlab-input-bg: rgba(0, 0, 0, 0.4);
+  --vlab-hover-text: #fff;
+  --vlab-stage-bg: radial-gradient(120% 130% at 50% 0%, #241d0d, #000 75%);
+}
+
+/* 薄荷 */
+.video-lab-app[data-theme="mint"], .vlab-root[data-theme="mint"] {
+  --vlab-bg: #07100c;
+  --vlab-bg2: #0a1410;
+  --vlab-surface: #0e1a14;
+  --vlab-surface2: #14241c;
+  --vlab-border: rgba(255, 255, 255, 0.09);
+  --vlab-text: #e2f0ea;
+  --vlab-muted: #7fa897;
+  --vlab-accent: #34d399;
+  --vlab-accent2: #60a5fa;
+  --vlab-glow: rgba(52, 211, 153, 0.24);
+  --vlab-ok: #34d399;
+  --vlab-bad: #ff4757;
+  --vlab-input-bg: rgba(0, 0, 0, 0.4);
+  --vlab-hover-text: #fff;
+  --vlab-stage-bg: radial-gradient(120% 130% at 50% 0%, #12271d, #000 75%);
+}
+
+/* =====================================================================
+ *  动画
+ * ===================================================================== */
+@keyframes vlabFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vlabFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes vlabPulse {
+  0%, 100% { box-shadow: 0 6px 20px var(--vlab-glow); }
+  50% { box-shadow: 0 6px 30px var(--vlab-glow), 0 0 18px var(--vlab-glow); }
+}
+@keyframes vlabShine { from { transform: translateX(-160%) skewX(-20deg); } to { transform: translateX(320%) skewX(-20deg); } }
+@keyframes vlabSent {
+  0% { box-shadow: 0 0 0 2px var(--vlab-ok), 0 0 18px rgba(52, 211, 153, 0.55); }
+  100% { box-shadow: 0 0 0 2px transparent, 0 0 0 transparent; }
+}
+
+/* =====================================================================
+ *  滚动条
+ * ===================================================================== */
+.video-lab-app ::-webkit-scrollbar { width: 7px; height: 7px; }
+.video-lab-app ::-webkit-scrollbar-track { background: transparent; }
+.video-lab-app ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.13); border-radius: 10px; }
+.video-lab-app ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* =====================================================================
+ *  窗口
+ * ===================================================================== */
+.video-lab-app.window-app {
+  min-width: 880px;
+  min-height: 500px;
+  background: var(--vlab-bg) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  font-family: "Signika", "Segoe UI", sans-serif !important;
+  color: var(--vlab-text) !important;
+  overflow: hidden !important;
+}
+.video-lab-app .window-header {
+  background: linear-gradient(180deg, #171920, #0c0d12) !important;
+  border-bottom: 1px solid var(--vlab-border) !important;
+  color: #fff !important;
+  height: 38px;
+}
+.video-lab-app[data-theme="bluewhite"] .window-header {
+  background: linear-gradient(180deg, #ffffff, #e8eef8) !important;
+  color: #14213d !important;
+}
+.video-lab-app .window-title { font-weight: 800; letter-spacing: 1px; }
+.video-lab-app .window-content {
+  background: linear-gradient(180deg, var(--vlab-bg), var(--vlab-bg2)) !important;
+  color: var(--vlab-text) !important;
+  padding: 12px 14px;
+  overflow: hidden;
+}
+
+/* =====================================================================
+ *  根布局（左右分栏）
+ * ===================================================================== */
+.vlab-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--vlab-text) !important;
+  animation: vlabFadeUp 0.32s ease both;
+}
+.vlab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  animation: vlabFadeUp 0.3s ease 0.03s both;
+}
+.vlab-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--vlab-text) !important;
+  text-shadow: 0 0 15px var(--vlab-glow);
+}
+.vlab-title i { color: var(--vlab-accent); filter: drop-shadow(0 0 6px var(--vlab-glow)); }
+.vlab-ver {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--vlab-muted);
+  border: 1px solid var(--vlab-border);
+  border-radius: 10px;
+  padding: 1px 7px;
+  letter-spacing: 1px;
+}
+.vlab-head-actions { display: flex; gap: 8px; align-items: center; }
+
+.vlab-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  animation: vlabFadeUp 0.32s ease 0.08s both;
+}
+
+/* ---------- 左：素材列表 ---------- */
+.vlab-side {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.vlab-side-toolbar { display: flex; gap: 8px; }
+.vlab-side-toolbar .vlab-btn { flex: 1; }
+.vlab-side-hint { font-size: 11px; color: var(--vlab-muted); line-height: 1.4; padding: 0 2px; }
+.vlab-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--vlab-input-bg);
+  border: 1px solid var(--vlab-border);
+  border-radius: 10px;
+  padding: 8px;
+}
+.vlab-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  animation: vlabFadeIn 0.3s ease both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+.vlab-row:hover {
+  background: var(--vlab-surface2);
+  border-color: var(--vlab-border);
+  transform: translateX(3px);
+}
+.vlab-row.sel {
+  background: var(--vlab-glow);
+  border-color: var(--vlab-accent);
+  box-shadow: inset 3px 0 0 var(--vlab-accent), 0 0 14px var(--vlab-glow);
+}
+.vlab-row.sent { animation: vlabSent 1.6s ease both; }
+.vlab-row-thumb {
+  width: 68px;
+  height: 42px;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  background: #05060a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.vlab-row-thumb img, .vlab-row-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+.vlab-row:hover .vlab-row-thumb img, .vlab-row:hover .vlab-row-thumb video { transform: scale(1.12); }
+.vlab-row-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 12px;
+}
+.vlab-kind {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.vlab-kind.vid { background: var(--vlab-glow); color: var(--vlab-accent); }
+.vlab-kind.img { background: rgba(255, 215, 0, 0.16); color: var(--vlab-accent2); }
+.vlab-row-info { flex: 1; min-width: 0; }
+.vlab-row-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vlab-text) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.vlab-row-real {
+  font-size: 10px;
+  color: var(--vlab-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vlab-row-tools {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.vlab-row:hover .vlab-row-tools, .vlab-row.sel .vlab-row-tools { opacity: 1; }
+
+/* ---------- 右：预览台 ---------- */
+.vlab-stage-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vlab-stage {
+  height: 200px;
+  flex: 0 0 auto;
+  position: relative;
+  border: 1px solid var(--vlab-border);
+  border-radius: 12px;
+  background: var(--vlab-stage-bg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.vlab-stage:hover { border-color: var(--vlab-accent); box-shadow: 0 0 20px var(--vlab-glow); }
+.vlab-stage-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  cursor: zoom-in;
+  animation: vlabFadeIn 0.25s ease;
+}
+.vlab-stage-img:hover { filter: brightness(1.06); }
+.vlab-stage-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.vlab-stage:hover .vlab-stage-hint { opacity: 1; transform: none; }
+.vlab-stage-vid {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  animation: vlabFadeIn 0.25s ease;
+}
+.vlab-stage-empty {
+  text-align: center;
+  color: var(--vlab-muted);
+  font-size: 13px;
+  animation: vlabFadeIn 0.3s ease;
+}
+.vlab-stage-empty i {
+  font-size: 34px;
+  display: block;
+  margin-bottom: 8px;
+  opacity: 0.5;
+  color: var(--vlab-accent);
+}
+.vlab-stage-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--vlab-surface);
+  border: 1px solid var(--vlab-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.vlab-stage-info { flex: 1; min-width: 0; }
+.vlab-stage-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--vlab-text) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vlab-stage-real { font-size: 11px; color: var(--vlab-muted); font-style: italic; }
+.vlab-stage-tools { display: flex; gap: 6px; flex-shrink: 0; }
+.vlab-sendbar { display: flex; align-items: center; gap: 14px; }
+.vlab-recip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  max-height: 76px;
+  overflow-y: auto;
+}
+.vlab-send-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 10px 24px !important;
+  font-size: 13px !important;
+  animation: vlabPulse 2.8s ease-in-out infinite;
+}
+
+/* ---------- 底部状态栏 ---------- */
+.vlab-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--vlab-muted);
+  padding: 0 2px;
+  animation: vlabFadeUp 0.3s ease 0.12s both;
+}
+.vlab-foot b { color: var(--vlab-accent2); }
+.vlab-foot-folder {
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =====================================================================
+ *  文件夹行
+ * ===================================================================== */
+.vlab-folder-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  animation: vlabFadeUp 0.3s ease 0.06s both;
+}
+.vlab-folder-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--vlab-input-bg) !important;
+  border: 2px solid rgba(255, 255, 255, 0.45) !important; /* 外边框加粗明显（用户要的「外边框」） */
+  color: var(--vlab-text) !important;
+  height: 42px;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 13.5px;
+  font-family: "Signika", sans-serif;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.vlab-folder-row .vlab-btn.vlab-folder-btn {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.vlab-folder-input:focus {
+  border-color: var(--vlab-accent) !important;
+  box-shadow: 0 0 0 3px var(--vlab-glow) !important;
+  outline: none;
+}
+
+/* =====================================================================
+ *  列表分组头 / 上传目标选择
+ * ===================================================================== */
+/* 虚拟收藏分组块（v1.5：纯 UI 拖拽收纳，不动磁盘） */
+.vlab-vgroup {
+  margin-bottom: 10px;
+  border: 1px solid var(--vlab-border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+}
+.vlab-vgroup:last-child { margin-bottom: 0; }
+.vlab-vgroup .vlab-group-head { margin-bottom: 0; border-radius: 0; }
+.vlab-vgroup-body {
+  padding: 6px;
+  min-height: 28px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.vlab-vgroup-body.drag-over {
+  background: var(--vlab-glow);
+  box-shadow: inset 0 0 0 2px var(--vlab-accent);
+}
+.vlab-vgroup-empty {
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--vlab-muted);
+  border: 1px dashed var(--vlab-border);
+  border-radius: 8px;
+}
+.vlab-foldbtn {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.vlab-foldbtn:hover { opacity: 1; }
+.vlab-delgroup {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.vlab-group-head:hover .vlab-delgroup { opacity: 1; }
+.vlab-vgroup.folded .vlab-vgroup-body { display: none; }
+.vlab-pool { border-style: dashed; }
+.vlab-pool .vlab-group-head { border-left-color: var(--vlab-accent2, var(--vlab-accent)); }
+.vlab-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--vlab-accent);
+  border-left: 3px solid var(--vlab-accent);
+  background: var(--vlab-input-bg);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.vlab-group-head .vlab-group-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.vlab-group-head .vlab-group-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vlab-muted);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+.vlab-upload-dir-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.vlab-upload-dir {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--vlab-border);
+  background: var(--vlab-input-bg);
+  color: var(--vlab-text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.vlab-upload-dir:hover {
+  border-color: var(--vlab-accent);
+}
+.vlab-upload-dir.sel {
+  border-color: var(--vlab-accent);
+  background: var(--vlab-glow-soft, rgba(0, 210, 255, 0.08));
+  box-shadow: 0 0 0 1px var(--vlab-accent);
+}
+.vlab-upload-dir i {
+  color: var(--vlab-accent);
+  width: 18px;
+  text-align: center;
+}
+.vlab-upload-dir input[type="radio"] {
+  margin-left: auto;
+  accent-color: var(--vlab-accent);
+}
+
+/* =====================================================================
+ *  按钮
+ * ===================================================================== */
+.vlab-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto !important; /* 覆盖 FVTT 全局 body.game .app button { width:100% }，否则按钮撑满把 input 挤成 32px 小方块 */
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--vlab-border);
+  background: var(--vlab-surface2);
+  color: var(--vlab-text) !important;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: "Signika", "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+.vlab-btn::after {
+  content: "";
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: translateX(-160%) skewX(-20deg);
+  pointer-events: none;
+}
+.vlab-btn:hover::after { animation: vlabShine 0.55s ease; }
+.vlab-btn:hover {
+  border-color: var(--vlab-accent);
+  color: var(--vlab-hover-text) !important;
+  box-shadow: 0 0 12px var(--vlab-glow);
+}
+.vlab-btn.primary {
+  background: linear-gradient(135deg, var(--vlab-accent), var(--vlab-accent2));
+  border: none;
+  color: #081018 !important;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 6px 20px var(--vlab-glow);
+  text-shadow: none;
+}
+.vlab-btn.primary:hover { filter: brightness(1.12); color: #081018 !important; }
+.vlab-btn.amber { border-color: var(--vlab-accent2); color: var(--vlab-accent2) !important; background: transparent; }
+.vlab-btn.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  color: var(--vlab-muted) !important;
+  border-radius: 7px;
+}
+.vlab-btn.icon-btn:hover { color: var(--vlab-accent) !important; }
+.vlab-btn.icon-btn.warn:hover {
+  color: var(--vlab-bad) !important;
+  border-color: var(--vlab-bad);
+  box-shadow: 0 0 12px rgba(255, 71, 87, 0.35);
+}
+.vlab-btn[data-act="refresh"] i { display: inline-block; transition: transform 0.45s ease; }
+.vlab-btn[data-act="refresh"]:hover i { transform: rotate(180deg); }
+
+/* =====================================================================
+ *  主题圆点
+ * ===================================================================== */
+.vlab-theme-panel {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 7px;
+  background: var(--vlab-input-bg);
+  border: 1px solid var(--vlab-border);
+  border-radius: 20px;
+}
+.vlab-theme-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: conic-gradient(var(--ta) 0 50%, var(--tb) 50% 100%);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.8;
+  transition: transform 0.25s ease, opacity 0.2s ease, border-color 0.2s ease;
+}
+.vlab-theme-dot:hover { opacity: 1; transform: rotate(120deg) scale(1.18); }
+.vlab-theme-dot.active {
+  opacity: 1;
+  border-color: #fff;
+  animation: vlabPulse 2.4s ease-in-out infinite;
+}
+.vlab-root[data-theme="bluewhite"] .vlab-theme-dot.active,
+.video-lab-app[data-theme="bluewhite"] .vlab-theme-dot.active { border-color: #14213d; }
+
+/* =====================================================================
+ *  接收人 chips
+ * ===================================================================== */
+.vlab-recip .vlab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--vlab-border);
+  background: var(--vlab-input-bg);
+  color: var(--vlab-text) !important;
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.vlab-recip .vlab-chip:hover { border-color: var(--vlab-accent); transform: translateY(-1px); }
+.vlab-recip .vlab-chip.active,
+.vlab-recip .vlab-chip.ga {
+  border-color: var(--vlab-accent);
+  background: var(--vlab-glow);
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 0 12px var(--vlab-glow);
+}
+.vlab-root[data-theme="bluewhite"] .vlab-recip .vlab-chip.active,
+.vlab-root[data-theme="bluewhite"] .vlab-recip .vlab-chip.ga { color: var(--vlab-accent) !important; }
+.vlab-recip-empty { font-size: 11px; color: var(--vlab-muted); }
+
+/* =====================================================================
+ *  空态 / 加载 / 诊断
+ * ===================================================================== */
+.vlab-empty {
+  text-align: center;
+  padding: 26px 14px;
+  color: var(--vlab-muted);
+  border: 2px dashed var(--vlab-border);
+  border-radius: 10px;
+  background: var(--vlab-input-bg);
+  font-size: 13px;
+  animation: vlabFadeIn 0.3s ease;
+}
+.vlab-empty-icon { font-size: 34px; margin-bottom: 10px; opacity: 0.6; color: var(--vlab-accent); }
+.vlab-empty-hint { font-size: 11px; margin-top: 6px; opacity: 0.7; }
+.vlab-diag { font-size: 11px; color: var(--vlab-muted); text-align: left; margin-top: 4px; word-break: break-all; }
+.vlab-diag b { color: var(--vlab-text); }
+.vlab-loading { text-align: center; padding: 30px 10px; color: var(--vlab-muted); font-size: 12px; }
+.vlab-loading .fa-spinner { display: block; font-size: 24px; margin-bottom: 8px; color: var(--vlab-accent); }
+
+/* =====================================================================
+ *  聊天栏
+ * ===================================================================== */
+.vlab-chat-wrap { border-radius: 8px; overflow: hidden; margin: 4px 0; background: #000; }
+.vlab-chat-wrap video { width: 100%; display: block; max-height: 320px; }
+.vlab-chat-media { position: relative; }
+.vlab-chat-media-link { display: block; cursor: zoom-in; }
+.vlab-chat-media img { transition: filter 0.2s ease; }
+.vlab-chat-media:hover img { filter: brightness(1.08); }
+.vlab-chat-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.vlab-chat-media:hover .vlab-chat-zoom { opacity: 1; }
+.vlab-chat-cap { padding: 6px 10px; background: #161b26; color: #d8e0ec; font-size: 12px; border-top: 1px solid #2c374d; }
+.vlab-chat-cap .cap-tag {
+  display: inline-block;
+  background: rgba(0, 210, 255, 0.15);
+  color: #00d2ff;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  margin-right: 6px;
+}
+
+/* =====================================================================
+ *  改名弹窗
+ * ===================================================================== */
+.vlab-rename-form { padding: 6px 2px; }
+.vlab-rename-hint { font-size: 11px; color: var(--vlab-muted); margin-bottom: 10px; }
+.vlab-rename-input {
+  width: 100%;
+  background: var(--vlab-input-bg);
+  border: 1px solid var(--vlab-border);
+  border-radius: 8px;
+  color: var(--vlab-text) !important;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.vlab-rename-input:focus { border-color: var(--vlab-accent); box-shadow: 0 0 0 3px var(--vlab-glow); outline: none; }
+
+/* =====================================================================
+ *  授权玩家面板（同主题体系）
+ * ===================================================================== */
+.vlab-perm { color: var(--vlab-text) !important; }
+.vlab-perm-sub { margin-bottom: 10px; }
+.vlab-perm-sub-t { font-size: 13px; font-weight: 700; color: var(--vlab-text) !important; }
+.vlab-perm-sub-d { font-size: 11px; color: var(--vlab-muted); margin-top: 3px; }
+.vlab-perm-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.vlab-perm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--vlab-input-bg);
+  border: 1px solid var(--vlab-border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.vlab-perm-search i { color: var(--vlab-muted); }
+.vlab-perm-search input { flex: 1; background: transparent; border: none; color: var(--vlab-text) !important; font-size: 12px; outline: none; }
+.vlab-perm-list {
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--vlab-border);
+  border-radius: 10px;
+  background: var(--vlab-input-bg);
+  padding: 6px;
+  margin-bottom: 14px;
+}
+.vlab-perm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.vlab-perm-row:hover { background: var(--vlab-surface2); transform: translateX(2px); }
+.vlab-perm-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--vlab-border); }
+.vlab-perm-ava-ico { display: flex; align-items: center; justify-content: center; background: var(--vlab-bg2); color: var(--vlab-muted); font-size: 12px; }
+.vlab-perm-name { flex: 1; font-size: 13px; color: var(--vlab-text) !important; display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.vlab-perm-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vlab-perm-tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+.vlab-perm-tag.gm { background: var(--vlab-glow); color: var(--vlab-accent); }
+.vlab-perm-role { font-size: 11px; color: var(--vlab-muted); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.vlab-perm-row input[type=checkbox] { accent-color: var(--vlab-accent); width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+.vlab-perm-row input[type=checkbox]:disabled { opacity: 0.5; cursor: not-allowed; }
+.vlab-perm-none { text-align: center; color: var(--vlab-muted); font-size: 12px; padding: 18px 0; }
