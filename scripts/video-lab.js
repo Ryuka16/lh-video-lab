@@ -1,6 +1,53 @@
 /* =====================================================================
- *  教学视频库 · lh-video-lab  v1.5.2
+ *  教学视频库 · lh-video-lab  v1.6.5
  *  GM 端面板：素材文件夹 + 全目录浏览 → 一键私聊 / 群发到聊天栏
+ *
+ *  v1.6.5 —— 修复深色主题下 Dialog 底部按钮「纯黑看不清」：
+ *  ① 窗口整体被主题底色染深（deep 等深色主题近黑），而 Dialog
+ *     底部标准按钮（复制文件夹地址/刷新/关闭）走 FVTT 默认样式
+ *     （深色字）→ 黑字落黑底。CSS 新增 .video-lab-app 作用域内
+ *     .dialog-buttons/.dialog-button 覆盖，统一走 --vlab-* 主题变量。
+ *
+ *  v1.6.4 —— 修复清理面板剪贴板与点击行为：
+ *  ① 复制改用官方 game.clipboard.copyPlainText（client/core/clipboard.js）：
+ *     非安全上下文（HTTP 服务器）下 navigator.clipboard 是 undefined，
+ *     官方 API 自带降级（navigator 失败自动走 document.execCommand("copy")）。
+ *  ② 点文件名改为「预览」（图片灯箱 / 视频新标签），复制路径走行内「复制」按钮。
+ *  ③ 导出状态的「复制到剪贴板」同样换用官方 API。
+ *
+ *  v1.6.3 —— 清理临时面板重做（回退 1.6.2 的清单/bat 指引，改浏览+操作）：
+ *  ① 「清理临时」打开 vlab-temp 浏览面板：上面每行文件可「预览」
+ *     （图片 ImagePopout 灯箱 / 视频新标签播放）、可「发送」（按当前
+ *     接收人发到聊天）、点文件名或「复制」按钮复制该文件路径。
+ *  ② 底部显示临时文件夹地址 Data/vlab-temp/，带「复制文件夹地址」
+ *     按钮；配一句提示：FVTT 源码不支持删除文件，请到该地址手动删除。
+ *  ③ 移除 v1.6.2 随包的 vlab-cleanup-temp.bat 与清单面板。
+ *  ④ 根因不变（源码坐实）：FVTT 服务端无任何删除通道——HTTP 路由
+ *     只有 get/post（dist/server/views/*.mjs），文件 socket 接口只有
+ *     browseFiles/createDirectory/configurePath（dist/files/files.mjs）；
+ *     游戏内任何代码（模块/宏/世界脚本）发 DELETE 都是 404，删服务器
+ *     文件只能到服务器侧手动删。
+ *
+ *  v1.6.1 —— 批量导入面板（拖拽 + 粘贴统一入口）：
+ *  ① 文件（图片/视频）从资源管理器拖进面板，或 Ctrl+V 粘贴，统一进
+ *     「导入面板」：一次多个只出一个面板（可继续追加拖入），逐行
+ *     预览（图片缩略图点击灯箱、视频点「预览」新标签）、改名、
+ *     选去向（默认「不留存」临时目录）、勾选是否发送（默认勾）。
+ *  ② 确认导入：防重名（撞名自动 -1/-2）、留存进素材文件夹、
+ *     临时进 vlab-temp、勾选发送的按当前接收人逐一发出。
+ *
+ *  v1.6 —— 剪贴板粘贴 + 四修复：
+ *  ① 剪贴板粘贴：面板打开期间 Ctrl+V，图片/视频直接进弹窗选「留存
+ *     （素材文件夹）/ 临时（vlab-temp，不进列表）」，可「保存并发送」
+ *     或「仅保存」；视频类剪贴板数据拿不到时明确提示走本地上传。
+ *     「清理临时」按钮打开官方 FilePicker 定位 vlab-temp（v13 无
+ *     服务器删除 API——manageFiles 只有 browseFiles/createDirectory/
+ *     configurePath，删文件只能靠官方文件浏览器手动删）。
+ *  ② 导出/导入补全：groups（收藏分组）+ collapsedGroups（折叠状态）
+ *     进导出（version 2），旧导出文件缺字段自动跳过。
+ *  ③ 版本探针 window.__VLAB_VER（module.json + 头注释 + 探针三处同步）。
+ *  ④ 场景按钮锚点降级链：fa-bookmark 锚点 → 控制栏任意同款按钮 →
+ *     控制栏容器内追加，不因「冒险者履历」被禁用而消失。
  *
  *  v1.5 —— 虚拟收藏分组（用户最终方向，改 v1.4 的错误）：
  *  ① 弃用 v1.4 的「真实子文件夹分组 / 新建文件夹 / 上传选子文件夹」。
@@ -50,9 +97,22 @@
  * ===================================================================== */
 (() => {
   const MODULE_ID = "lh-video-lab";
+  window.__VLAB_VER = "1.6.5";   // 版本探针：远程调试先拿它确认新旧代码（与 module.json、头注释同步升）
   const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "svg", "avif", "bmp", "tif", "tiff"];
   const VIDEO_EXTS = ["mp4", "webm", "ogv", "mov", "m4v"];
   const DEFAULT_FOLDER = "教学视频";   // 全局目录（不绑 worldId），跨世界包共享
+  const TEMP_FOLDER = "vlab-temp";     // 粘贴「不留存」的临时目录（不进素材列表；Foundry 无删除 API，清理靠清单面板 + 服务器端删除）
+  // 剪贴板 MIME → 扩展名（粘贴时按类型定名）
+  const PASTE_EXT = {
+    "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
+    "image/bmp": "bmp", "image/avif": "avif", "image/svg+xml": "svg",
+    "video/mp4": "mp4", "video/webm": "webm", "video/ogg": "ogv", "video/quicktime": "mov", "video/x-m4v": "m4v",
+  };
+  const pasteStamp = () => {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  };
 
   // ---------- 工具 ----------
   const esc = (s) => String(s ?? "")
@@ -196,11 +256,13 @@
   const statePayload = () => ({
     module: MODULE_ID,
     type: "vlab-state",
-    version: 1,
+    version: 2,                        // v1.6 起含 groups/collapsed；旧文件缺字段导入时跳过
     exportedAt: new Date().toISOString(),
     videoFolder: getSetting("videoFolder", DEFAULT_FOLDER),
     aliases: getAliases(),
     picked: getPicked(),
+    groups: getGroups(),
+    collapsed: getCollapsed(),
     theme: getTheme(),
     winState: getSetting("winState", {}),
   });
@@ -263,10 +325,8 @@
             }
             if (wantCopy) {
               try {
-                if (navigator.clipboard) {
-                  await navigator.clipboard.writeText(json);
-                  results.push("已复制到剪贴板");
-                } else throw new Error("no clipboard");
+                await game.clipboard.copyPlainText(json);   // 官方 API：非安全上下文自动降级 execCommand
+                results.push("已复制到剪贴板");
               } catch (err) {
                 results.push("复制失败（可手动在文本框全选复制）");
               }
@@ -297,6 +357,8 @@
     if (typeof data.videoFolder === "string" && data.videoFolder) await setSetting("videoFolder", data.videoFolder);
     if (data.aliases && typeof data.aliases === "object" && !Array.isArray(data.aliases)) await setSetting("aliases", data.aliases);
     if (Array.isArray(data.picked)) await setSetting("picked", data.picked);
+    if (data.groups && typeof data.groups === "object" && !Array.isArray(data.groups)) await setSetting("groups", data.groups);
+    if (data.collapsed && typeof data.collapsed === "object" && !Array.isArray(data.collapsed)) await setSetting("collapsedGroups", data.collapsed);
     if (typeof data.theme === "string" && data.theme) await setSetting("theme", data.theme);
     if (data.winState && typeof data.winState === "object" && !Array.isArray(data.winState)) await setSetting("winState", data.winState);
     ui.notifications.notify("状态导入成功！重开面板即生效。");
@@ -523,7 +585,7 @@
     const content = `
       <div class="vlab-root" data-theme="${getTheme()}">
         <div class="vlab-head">
-          <div class="vlab-title"><i class="fa-solid fa-clapperboard"></i> 教学视频库 <span class="vlab-ver">v1.5.2</span></div>
+          <div class="vlab-title"><i class="fa-solid fa-clapperboard"></i> 教学视频库 <span class="vlab-ver">v1.6.0</span></div>
           <div class="vlab-head-actions">
             <span class="vlab-theme-panel" data-widget="themes" title="预设配色"></span>
             <button class="vlab-btn" data-act="export" title="导出状态（跨电脑备份）"><i class="fa-solid fa-file-export"></i> 导出</button>
@@ -543,10 +605,11 @@
           <div class="vlab-side">
             <div class="vlab-side-toolbar">
               <button class="vlab-btn primary" data-act="upload"><i class="fa-solid fa-cloud-arrow-up"></i> 本地上传</button>
+              <button class="vlab-btn" data-act="paste" title="复制图片/视频后，在面板内 Ctrl+V 粘贴"><i class="fa-solid fa-paste"></i> 粘贴</button>
               <button class="vlab-btn" data-act="browse"><i class="fa-solid fa-server"></i> 浏览服务器</button>
               <button class="vlab-btn amber" data-act="addgroup" title="新建收藏分组"><i class="fa-solid fa-folder-plus"></i> 新建分组</button>
             </div>
-            <div class="vlab-side-hint">素材无论在哪，拖进分组即可归类（纯 UI 收纳，不动服务器文件）</div>
+            <div class="vlab-side-hint">素材拖进分组归类；复制截图/视频后 <b>Ctrl+V</b> 粘贴，或把文件直接拖进面板导入（默认不留存，可勾选发送）</div>
             <div class="vlab-list" data-widget="list">
               <div class="vlab-loading"><i class="fa-solid fa-spinner fa-spin"></i>读取素材列表…</div>
             </div>
@@ -580,6 +643,7 @@
 
         <div class="vlab-foot">
           <span><i class="fa-solid fa-film"></i> 共 <b data-widget="count">0</b> 个素材</span>
+          <button class="vlab-btn vlab-foot-btn" data-act="cleantemp" title="浏览 vlab-temp 临时文件：可预览、发送、复制地址（删除需到服务器手动操作）"><i class="fa-solid fa-broom"></i> 清理临时</button>
           <span class="vlab-foot-folder" data-widget="footfolder"></span>
         </div>
       </div>`;
@@ -804,13 +868,22 @@
       refreshStage(html);
     };
 
-    // ---------- 发送 ----------
+    // ---------- 发送（sendDirect = 免确认直发，粘贴流程复用） ----------
+    const sendDirect = async (path) => {
+      const name = displayNameOf(path);
+      const whisper = recipient === "all" ? [] : [recipient];
+      await ChatMessage.create({
+        speaker: { alias: game.user.name },
+        content: buildChatContent(path, name),
+        ...(whisper.length ? { whisper } : {}),
+      });
+    };
+
     const sendPath = async (html, path, rowEl) => {
       if (!canUse()) { ui.notifications.warn("你没有权限使用教学视频库"); return; }
       if (!path) return;
       const name = displayNameOf(path);
       const target = targetLabel();
-      const whisper = recipient === "all" ? [] : [recipient];
 
       let ok = false;
       try {
@@ -838,11 +911,7 @@
       if (!ok) return;
 
       try {
-        await ChatMessage.create({
-          speaker: { alias: game.user.name },
-          content: buildChatContent(path, name),
-          ...(whisper.length ? { whisper } : {}),
-        });
+        await sendDirect(path);
         ui.notifications.notify("已发送给 " + target);
         if (rowEl?.length) {
           rowEl.addClass("sent");
@@ -1011,6 +1080,324 @@
       input.click();
     };
 
+    // ---------- 批量导入面板（Ctrl+V 粘贴 / 文件拖入面板，统一入口） ----------
+    // 面板打开期间粘贴或拖入图片/视频 → 统一进「导入面板」排队。
+    // 一次拖多个只出一个面板；面板开着再拖/再粘 → 追加行。默认「不留存」。
+    const importItems = [];   // {file, mime, url} 待处理；url = objectURL 预览用
+    let importApp = null;
+
+    const importRowHTML = (it, idx) => {
+      const ext = PASTE_EXT[it.mime] || (it.file.name?.split(".").pop()?.toLowerCase() || "png");
+      const isImg = (it.mime || "").startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(it.file.name || "");
+      const genericName = /^image\.(png|jpe?g)$/i.test(it.file.name || "");   // 剪贴板无名图
+      const dfltName = (it.file.name && !genericName) ? it.file.name : `粘贴-${pasteStamp()}.${ext}`;
+      const sizeMB = it.file.size ? (it.file.size / 1024 / 1024).toFixed(2) : "?";
+      const preview = isImg
+        ? `<img src="${it.url}" alt="" title="点击放大预览" />`
+        : `<video src="${it.url || ""}" preload="metadata" playsinline muted></video>`;
+      const prevBtn = isImg
+        ? ""
+        : `<button type="button" class="vlab-btn vlab-import-prev" data-prev="${idx}"><i class="fa-solid fa-play"></i>预览</button>`;
+      return `
+        <div class="vlab-import-row" data-idx="${idx}">
+          <div class="vlab-import-thumb">${preview}</div>
+          <div class="vlab-import-meta">
+            <input type="text" class="vlab-rename-input vlab-import-name" value="${esc(dfltName)}" spellcheck="false" />
+            <div class="vlab-import-submeta">
+              <span class="vlab-import-size">${sizeMB} MB</span>
+              ${prevBtn}
+            </div>
+          </div>
+          <div class="vlab-import-opts">
+            <label class="vlab-import-opt"><input type="radio" name="vlab-imp-keep-${idx}" value="keep"> 留存</label>
+            <label class="vlab-import-opt"><input type="radio" name="vlab-imp-keep-${idx}" value="temp" checked> 不留存</label>
+            <label class="vlab-import-opt"><input type="checkbox" class="vlab-import-send" checked> 发送</label>
+          </div>
+        </div>`;
+    };
+
+    const renderImportList = () => {
+      const el = importApp?.element;
+      if (!el) return;
+      el.find(".vlab-import-list").html(importItems.map((it, i) => importRowHTML(it, i)).join(""));
+      el.find(".vlab-import-count").text(String(importItems.length));
+      el.find(".vlab-import-sub").text(`发送给：面板当前选中的接收人（${targetLabel()}）；确认导入后逐一发出。`);
+    };
+
+    const openImportPanel = (newFiles) => {
+      if (!canUse()) { ui.notifications.warn("你没有权限使用教学视频库"); return; }
+      if (!newFiles?.length) return;
+      for (const nf of newFiles) {
+        let url = null;
+        try { url = URL.createObjectURL(nf.file); } catch (e) { /* 无 createObjectURL 的老环境也能导入，只是没预览 */ }
+        importItems.push({ file: nf.file, mime: nf.mime || "", url });
+      }
+      if (importApp) { renderImportList(); return; }
+
+      const revokeAll = () => {
+        for (const it of importItems) {
+          if (it.url) { try { URL.revokeObjectURL(it.url); } catch (e) { /* 忽略 */ } }
+        }
+        importItems.length = 0;
+      };
+
+      const content = `
+        <div class="vlab-import">
+          <div class="vlab-import-head"><i class="fa-solid fa-inbox"></i> 待导入 <b class="vlab-import-count">0</b> 个文件：预览、改名、选去向（默认不留存）、勾选是否发送。面板开着可继续拖入 / Ctrl+V 追加。</div>
+          <div class="vlab-import-list"></div>
+          <div class="vlab-import-sub"></div>
+        </div>`;
+
+      importApp = new Dialog({
+        title: "教学视频库 · 导入文件",
+        content,
+        render: (h) => {
+          h.closest(".window-app").attr("data-theme", getTheme());
+          renderImportList();
+          // 图片缩略图点击 → 官方灯箱放大；视频「预览」按钮 → 新标签原生播放
+          h.on("click", ".vlab-import-thumb img", (ev) => {
+            const idx = Number(ev.currentTarget.closest(".vlab-import-row")?.dataset.idx);
+            const url = importItems[idx]?.url;
+            if (!url) return;
+            try {
+              new foundry.applications.apps.ImagePopout({ src: url, window: { title: "预览" } }).render(true);
+            } catch (e) {
+              window.open(url, "_blank");
+            }
+          });
+          h.on("click", ".vlab-import-prev", (ev) => {
+            const idx = Number(ev.currentTarget.dataset.prev);
+            const url = importItems[idx]?.url;
+            if (url) window.open(url, "_blank");
+          });
+        },
+        buttons: {
+          clear: {
+            icon: '<i class="fa-solid fa-eraser"></i>',
+            label: "清空列表",
+            callback: (h, evt) => {
+              evt?.preventDefault?.();   // 阻止 v1 Dialog 默认关闭（只清列表，面板留着继续拖）
+              revokeAll();
+              renderImportList();
+            },
+          },
+          import: {
+            icon: '<i class="fa-solid fa-paper-plane"></i>',
+            label: "确认导入",
+            callback: async (h) => {
+              // 照 DialogV2 教训：按钮 callback 里从 DOM 读最终状态（不回读闭包旧值）
+              const rows = [...(h[0].querySelectorAll(".vlab-import-row") || [])];
+              if (!rows.length) { ui.notifications.warn("没有待导入的文件"); return; }
+              const tasks = rows.map((row) => {
+                const it = importItems[Number(row.dataset.idx)] || {};
+                return {
+                  file: it.file, mime: it.mime, url: it.url,
+                  name: (row.querySelector(".vlab-import-name")?.value || "").trim() || it.file?.name || "粘贴.png",
+                  keep: !!row.querySelector('input[value="keep"]')?.checked,
+                  send: !!row.querySelector(".vlab-import-send")?.checked,
+                };
+              }).filter((t) => t.file);
+              if (!tasks.length) { ui.notifications.warn("没有可导入的文件"); return; }
+
+              const btn = h[0].querySelector('[data-button="import"]');
+              if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 导入中…'; }
+              const keepFolder = normPath(getFolder());
+              const used = new Set(dirSetCache || []);   // 已知路径集合，防重名
+              let sent = 0, kept = 0, tmp = 0;
+              try {
+                for (const t of tasks) {
+                  const folder = t.keep ? keepFolder : TEMP_FOLDER;
+                  try { await FilePicker.createDirectory("data", folder, {}); }
+                  catch (e) { console.debug("[lh-video-lab] createDirectory（可能已存在）:", e?.message || e); }
+                  // 防重名：与已知路径撞名自动加 -1 / -2
+                  let nm = String(t.name).trim() || "粘贴.png";
+                  const mm = nm.match(/^(.*?)(\.[^.]+)?$/);
+                  const base = (mm[1] || "粘贴").trim() || "粘贴";
+                  const ext = (mm[2] || "").replace(/^\./, "");
+                  let k = 1;
+                  while (used.has(folder + "/" + nm)) {
+                    nm = ext ? `${base}-${k++}.${ext}` : `${base}-${k++}`;
+                  }
+                  used.add(folder + "/" + nm);
+                  const f = new File([t.file], nm, { type: t.mime || undefined });
+                  await FilePicker.upload("data", folder, f, { notify: false });
+                  if (t.keep) kept++; else tmp++;
+                  if (t.send) { await sendDirect(normPath(folder + "/" + nm)); sent++; }
+                }
+                ui.notifications.notify(`导入完成：共 ${tasks.length} 个（留存 ${kept} / 临时 ${tmp}），已发送 ${sent} 个给 ${targetLabel()}`);
+              } catch (e) {
+                console.error("[lh-video-lab] 批量导入失败", e);
+                ui.notifications.error("导入失败：" + (e?.message || e));
+              } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> 确认导入'; }
+                revokeAll();
+                importApp?.close();
+                importApp = null;
+                const panelHtml = videoLabApp?.element;
+                if (panelHtml && kept) await loadList(panelHtml);   // 有留存才刷新素材列表
+              }
+            },
+          },
+          cancel: {
+            icon: '<i class="fa-solid fa-xmark"></i>',
+            label: "取消",
+            callback: () => { revokeAll(); importApp = null; },
+          },
+        },
+        default: "import",
+        close: () => {
+          if (importApp) { revokeAll(); importApp = null; }
+        },
+      }, winOptions({ width: 600, height: 620 }));
+      importApp.render(true);
+    };
+
+    const onPaste = (ev) => {
+      const items = ev.clipboardData?.items;
+      if (!items) return;
+      let file = null, mime = null;
+      for (const it of items) {
+        const t = String(it.type || "").toLowerCase();
+        if (t.startsWith("image/") || t.startsWith("video/")) {
+          const f = typeof it.getAsFile === "function" ? it.getAsFile() : null;
+          if (f) { file = f; mime = t; break; }
+        }
+      }
+      if (file) {
+        ev.preventDefault();
+        openImportPanel([{ file, mime }]);
+        return;
+      }
+      // 拿不到媒体内容：若剪贴板是文件路径文本，明确提示（浏览器安全限制拿不到本地文件本体）
+      try {
+        const txt = (ev.clipboardData.getData("text/plain") || "").trim();
+        if (txt && /\.(mp4|webm|ogv|mov|m4v|png|jpe?g|gif|webp|bmp|avif)$/i.test(txt)) {
+          ev.preventDefault();
+          ui.notifications.warn("剪贴板里是文件路径，浏览器拿不到文件本体。请点「本地上传」。");
+        }
+      } catch (e) { /* 忽略 */ }
+    };
+
+    // ---------- 清理临时面板（浏览 vlab-temp：预览 / 发送 / 复制地址；删除指引在底部） ----------
+    // 根因坐实：FVTT 服务端无删除通道（HTTP 路由只有 get/post，文件 socket
+    // 只有 browseFiles/createDirectory/configurePath），游戏内任何代码发
+    // DELETE 都是 404——删服务器文件只能到服务器侧手动删。
+    const openCleanupPanel = async () => {
+      let files = [], err = "";
+      try {
+        const res = await FilePicker.browse("data", TEMP_FOLDER);
+        files = (res?.files || []).map((f) => normPath(String(f))).sort((a, b) => a.localeCompare(b, "zh"));
+      } catch (e) {
+        err = String(e?.message || e);
+      }
+      const nameOf = (f) => {
+        const n = (f.split("/").pop() || f).trim();
+        try { return decodeURIComponent(n); } catch (e) { return n; }
+      };
+      const copyText = async (txt, tip) => {
+        try {
+          await game.clipboard.copyPlainText(txt);   // 官方 API：HTTP 非安全上下文自动降级 execCommand
+          ui.notifications.info(tip);
+          return true;
+        } catch (e) {
+          ui.notifications.warn("复制失败：" + (e?.message || e));
+          return false;
+        }
+      };
+      const previewFile = (f) => {
+        if (isImage(f)) {
+          try {
+            new foundry.applications.apps.ImagePopout({
+              src: normPath(f),
+              window: { title: nameOf(f) },
+            }).render(true);
+          } catch (e) {
+            console.warn("[lh-video-lab] 灯箱打开失败，回退新标签", e);
+            window.open(normPath(f), "_blank");
+          }
+        } else {
+          window.open(normPath(f), "_blank");
+        }
+      };
+      const rows = files.length
+        ? files.map((f) => {
+            const kind = isImage(f) ? "图片" : (isVideo(f) ? "视频" : "其他");
+            return `<tr>
+              <td class="vlab-clean-name" data-clean="preview" data-path="${esc(f)}" title="点击预览该文件">${esc(nameOf(f))}</td>
+              <td class="vlab-clean-kind">${kind}</td>
+              <td class="vlab-clean-acts">
+                <button type="button" class="vlab-clean-act" data-clean="preview" data-path="${esc(f)}" title="预览"><i class="fa-solid fa-eye"></i></button>
+                <button type="button" class="vlab-clean-act" data-clean="send" data-path="${esc(f)}" title="发送到聊天"><i class="fa-solid fa-paper-plane"></i></button>
+                <button type="button" class="vlab-clean-act" data-clean="copy" data-path="${esc(f)}" title="复制路径"><i class="fa-solid fa-copy"></i></button>
+              </td>
+            </tr>`;
+          }).join("")
+        : `<tr><td colspan="3" class="vlab-clean-none">临时夹是空的，无需清理。</td></tr>`;
+      const content = `
+        <div class="vlab-clean">
+          <div class="vlab-clean-info">
+            共 <b>${files.length}</b> 个文件 · 临时文件夹（不保存的粘贴/拖入会进这里）
+          </div>
+          ${err ? `<div class="vlab-diag">读取失败：${esc(err)}</div>` : ""}
+          <div class="vlab-clean-tablewrap"><table class="vlab-clean-table"><tbody>${rows}</tbody></table></div>
+          <div class="vlab-clean-hint">
+            FVTT 源码不支持删除文件，请在下方地址手动进行删除：
+            <div class="vlab-clean-addr">
+              <span class="vlab-clean-path" title="服务器相对目录">Data/${esc(TEMP_FOLDER)}/</span>
+              <button type="button" class="vlab-btn vlab-clean-copy" data-clean="copydir"><i class="fa-solid fa-copy"></i> 复制文件夹地址</button>
+            </div>
+            服务器是别人托管的（Forge / Molten 等）就用平台网页文件管理删；删除后点「刷新」重新统计。
+          </div>
+        </div>`;
+      const dlg = new Dialog({
+        title: "清理临时文件",
+        content,
+        render: (h) => {
+          h.closest(".window-app").attr("data-theme", getTheme());
+          h.on("click", "[data-clean=refresh]", async () => { await dlg.close(); openCleanupPanel(); });
+          h.on("click", "[data-clean=preview]", (ev) => previewFile(normPath(ev.currentTarget.dataset.path)));
+          h.on("click", "[data-clean=send]", async (ev) => {
+            const p = normPath(ev.currentTarget.dataset.path);
+            if (!p) return;
+            try {
+              await sendDirect(p);
+              ui.notifications.notify("已发送给 " + targetLabel());
+            } catch (e) {
+              console.error("[lh-video-lab] 发送失败", e);
+              ui.notifications.error("发送失败：" + (e?.message || e));
+            }
+          });
+          h.on("click", "[data-clean=copy]", async (ev) => {
+            await copyText(normPath(ev.currentTarget.dataset.path), "已复制文件路径到剪贴板。");
+          });
+          h.on("click", "[data-clean=copydir]", async () => {
+            await copyText("Data/" + TEMP_FOLDER + "/", "已复制临时文件夹地址。");
+          });
+        },
+        buttons: {
+          copy: {
+            icon: '<i class="fa-solid fa-copy"></i>',
+            label: "复制文件夹地址",
+            callback: async () => {
+              await copyText("Data/" + TEMP_FOLDER + "/", "已复制临时文件夹地址。");
+              return false;   // 保持面板打开
+            },
+          },
+          refresh: {
+            icon: '<i class="fa-solid fa-rotate"></i>',
+            label: "刷新",
+            callback: async () => { await dlg.close(); openCleanupPanel(); },
+          },
+          close: {
+            icon: '<i class="fa-solid fa-xmark"></i>',
+            label: "关闭",
+          },
+        },
+        default: "close",
+      }, { width: 560, classes: ["dialog", "video-lab-app", `theme-${getTheme()}`] });
+      dlg.render(true);
+    };
+
     // ---------- 窗口状态记忆（client 级，跨世界包共享） ----------
     const winState = (() => {
       const s = getSetting("winState", {});
@@ -1068,6 +1455,38 @@
 
         // 本地上传
         html.on("click", "[data-act=upload]", () => uploadLocal(html));
+
+        // 剪贴板粘贴：面板打开期间监听 Ctrl+V；「粘贴」按钮只做引导提示
+        document.addEventListener("paste", onPaste);
+        html.on("click", "[data-act=paste]", () => {
+          ui.notifications.info("复制图片/视频后在本面板内 Ctrl+V 粘贴，或把文件从文件夹直接拖进本面板——统一进导入面板（默认不留存，可勾选发送）。");
+        });
+
+        // 文件拖入面板：拖图片/视频文件进面板 → 导入面板（一次多个只出一个面板，可继续追加）
+        const isMediaFile = (f) => {
+          const t = String(f.type || "").toLowerCase();
+          if (t.startsWith("image/") || t.startsWith("video/")) return true;
+          return /\.(png|jpe?g|gif|webp|bmp|avif|svg|mp4|webm|ogv|mov|m4v)$/i.test(f.name || "");
+        };
+        winEl.on("dragover", (ev) => {
+          const types = ev.originalEvent?.dataTransfer?.types;
+          if (!types || !Array.from(types).includes("Files")) return;   // 只拦文件拖拽，不干扰素材行归组
+          ev.preventDefault();
+          winEl.addClass("drop-hover");
+        });
+        winEl.on("dragleave", () => { winEl.removeClass("drop-hover"); });
+        winEl.on("drop", (ev) => {
+          ev.preventDefault();
+          winEl.removeClass("drop-hover");
+          const files = [...(ev.originalEvent?.dataTransfer?.files || [])].filter(isMediaFile);
+          if (files.length) {
+            ev.stopPropagation();   // 文件落进面板 = 导入，不再走归组 drop
+            openImportPanel(files.map((f) => ({ file: f, mime: String(f.type || "") })));
+          }
+        });
+
+        // 清理临时：清单面板（列出 vlab-temp 全部文件 + 复制清单 + 服务器侧删除指引）
+        html.on("click", "[data-act=cleantemp]", () => openCleanupPanel());
 
         // 浏览服务器：imagevideo 全目录
         html.on("click", "[data-act=browse]", () => {
@@ -1138,6 +1557,7 @@
         html.on("dragover", "[data-widget=list] .vlab-vgroup-body", (ev) => {
           const body = $(ev.currentTarget);
           if (body.closest(".vlab-pool").length) return;
+          if (Array.from(ev.originalEvent?.dataTransfer?.types || []).includes("Files")) return;   // 文件拖拽走导入面板
           ev.preventDefault();
           ev.originalEvent.dataTransfer.dropEffect = "move";
           body.addClass("drag-over");
@@ -1150,6 +1570,7 @@
           const body = $(ev.currentTarget);
           body.removeClass("drag-over");
           if (body.closest(".vlab-pool").length) return;
+          if (Array.from(ev.originalEvent?.dataTransfer?.types || []).includes("Files")) return;   // 文件拖拽走导入面板
           const group = body.attr("data-group");
           if (!dragPath || !group) return;
           addToGroup(html, group, dragPath);
@@ -1181,6 +1602,8 @@
       },
       default: "close",
       close: () => {
+        // 移除粘贴监听（面板关了就不再劫持 Ctrl+V）
+        document.removeEventListener("paste", onPaste);
         // 关闭时记住位置 / 大小 / 配色（client 级，跨世界包共享）
         try {
           const pos = videoLabApp?.position;
@@ -1337,17 +1760,23 @@
       }
     }, true);
 
-    // ---- 场景控制按钮：轮询 + insertAfter 锚点（照已验证的「简单陷阱」「冒险者履历」模式）----
+    // ---- 场景控制按钮：轮询 + 锚点降级链（照已验证的「简单陷阱」「冒险者履历」模式）----
+    // 降级链：① fa-bookmark 锚点（冒险者履历按钮，原锚点）→ ② 控制栏任意同款
+    // 按钮的末位 → ③ 控制栏容器内追加。类名全部来自已验证代码，不新猜。
     const BTN_ID = "vlab-video-lab-btn";
     const BTN_HTML = `<button id="${BTN_ID}" class="control ui-control layer icon fa-solid fa-clapperboard" title="教学视频库" style="color:#00d2ff;"></button>`;
     let logged = false;
     setInterval(() => {
+      if ($("#" + BTN_ID).length > 0) return;   // 按钮在，什么都不做
+      const $tools = $("#controls ol.control-tools");
       const $anchor = $("button.control.ui-control.layer.icon.fa-solid.fa-bookmark");
-      if (!$anchor.length) return;
-      if ($("#" + BTN_ID).length > 0) return;
+      const $sibs = $("button.control.ui-control.layer.icon");
+      if (!$anchor.length && !$sibs.length && !$tools.length) return;   // 控制栏还没渲染，等下一轮
       const $btn = $(BTN_HTML);
       $btn.on("click", () => openVideoLab());
-      $btn.insertAfter($anchor);
+      if ($anchor.length) $btn.insertAfter($anchor);
+      else if ($sibs.length) $btn.insertAfter($sibs.last());
+      else $tools.append($btn);
       if (!logged) { logged = true; console.log("[lh-video-lab] 🎬 场景控制按钮已挂载（常驻巡查，切场景自动贴回）"); }
     }, 1500);
 

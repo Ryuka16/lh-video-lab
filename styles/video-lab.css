@@ -465,12 +465,76 @@
   animation: vlabFadeUp 0.3s ease 0.12s both;
 }
 .vlab-foot b { color: var(--vlab-accent2); }
+.vlab-foot-btn {
+  flex-shrink: 0;
+  padding: 3px 12px;
+  font-size: 10.5px;
+}
 .vlab-foot-folder {
   max-width: 55%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* =====================================================================
+ *  批量导入面板（拖拽 / Ctrl+V 文件，预览 + 逐行去向 + 是否发送）
+ * ===================================================================== */
+.video-lab-app.drop-hover .vlab-root {
+  outline: 2px dashed var(--vlab-accent);
+  outline-offset: -6px;
+}
+.vlab-import { display: flex; flex-direction: column; gap: 10px; }
+.vlab-import-head { font-size: 12px; color: var(--vlab-muted); line-height: 1.5; }
+.vlab-import-head b { color: var(--vlab-accent2); }
+.vlab-import-list {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--vlab-border);
+  border-radius: 10px;
+  background: var(--vlab-bg2);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vlab-import-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 9px;
+  border: 1px solid var(--vlab-border);
+  background: var(--vlab-surface);
+  animation: vlabFadeUp 0.25s ease both;
+}
+.vlab-import-thumb {
+  width: 88px;
+  height: 56px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #05060a;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.vlab-import-thumb img { cursor: pointer; }
+.vlab-import-thumb img, .vlab-import-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vlab-import-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.vlab-import-submeta { display: flex; align-items: center; gap: 8px; }
+.vlab-import-size { font-size: 10.5px; color: var(--vlab-muted); }
+.vlab-import-prev { padding: 2px 10px; font-size: 10.5px; }
+.vlab-import-opts { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; align-items: flex-start; }
+.vlab-import-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--vlab-text);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.vlab-import-opt input { accent-color: var(--vlab-accent); margin: 0; }
+.vlab-import-sub { font-size: 11px; color: var(--vlab-muted); }
 
 /* =====================================================================
  *  文件夹行
@@ -875,3 +939,123 @@
 .vlab-perm-row input[type=checkbox] { accent-color: var(--vlab-accent); width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
 .vlab-perm-row input[type=checkbox]:disabled { opacity: 0.5; cursor: not-allowed; }
 .vlab-perm-none { text-align: center; color: var(--vlab-muted); font-size: 12px; padding: 18px 0; }
+
+/* =====================================================================
+ *  清理临时面板（v1.6.3：浏览 + 预览/发送/复制地址 + 删除指引）
+ * ===================================================================== */
+.vlab-clean { color: var(--vlab-text) !important; }
+.vlab-clean-info {
+  font-size: 13px;
+  margin-bottom: 10px;
+  color: var(--vlab-text) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vlab-clean-info b { color: var(--vlab-accent); }
+.vlab-clean-path {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  background: var(--vlab-bg2);
+  border: 1px solid var(--vlab-border);
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--vlab-muted);
+  word-break: break-all;
+}
+.vlab-clean-tablewrap {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--vlab-border);
+  border-radius: 8px;
+  background: var(--vlab-input-bg);
+  margin-bottom: 12px;
+}
+.vlab-clean-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.vlab-clean-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--vlab-border);
+  color: var(--vlab-text) !important;
+}
+.vlab-clean-table tr:last-child td { border-bottom: none; }
+.vlab-clean-name {
+  max-width: 0;
+  width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Consolas", "Courier New", monospace;
+  cursor: pointer;
+}
+.vlab-clean-name:hover { color: var(--vlab-accent) !important; text-decoration: underline; }
+.vlab-clean-kind {
+  width: 14%;
+  font-size: 11px;
+  color: var(--vlab-muted);
+  white-space: nowrap;
+}
+.vlab-clean-acts { width: 28%; text-align: right; white-space: nowrap; }
+.vlab-clean-act {
+  display: inline-block;
+  width: 26px;
+  height: 24px;
+  line-height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid var(--vlab-border);
+  border-radius: 6px;
+  background: var(--vlab-bg2);
+  color: var(--vlab-text) !important;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+  box-sizing: border-box;
+}
+.vlab-clean-act:hover { border-color: var(--vlab-accent); color: var(--vlab-accent) !important; }
+.vlab-clean-none { text-align: center; color: var(--vlab-muted); padding: 16px 0 !important; }
+.vlab-clean-hint {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--vlab-muted);
+  background: var(--vlab-bg2);
+  border: 1px solid var(--vlab-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.vlab-clean-hint b { color: var(--vlab-text); }
+.vlab-clean-addr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.vlab-clean-copy {
+  padding: 2px 10px;
+  font-size: 12px;
+  height: auto;
+  line-height: 1.7;
+}
+
+/* =====================================================================
+ *  v1.6.5 修复：Dialog 底部标准按钮（复制文件夹地址/刷新/关闭）
+ *  FVTT 默认按钮样式（深色字）落在主题深底窗口上成「纯黑一块」，
+ *  统一走主题变量，深/浅色主题都清晰。
+ * ===================================================================== */
+.video-lab-app .dialog-buttons {
+  background: var(--vlab-bg2) !important;
+  border-top: 1px solid var(--vlab-border) !important;
+}
+.video-lab-app .dialog-buttons .dialog-button {
+  background: var(--vlab-surface2) !important;
+  border: 1px solid var(--vlab-border) !important;
+  color: var(--vlab-text) !important;
+  box-shadow: none !important;
+}
+.video-lab-app .dialog-buttons .dialog-button:hover,
+.video-lab-app .dialog-buttons .dialog-button:focus {
+  border-color: var(--vlab-accent) !important;
+  color: var(--vlab-hover-text) !important;
+  box-shadow: 0 0 12px var(--vlab-glow) !important;
+}
